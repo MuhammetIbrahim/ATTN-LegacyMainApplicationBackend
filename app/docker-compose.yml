@@ -1,0 +1,81 @@
+# Ana Uygulama: /app/docker-compose.yml
+
+version: '3.8'
+
+services:
+
+  nginx:
+    # --- DEĞİŞİKLİK: Container adını benzersiz yapıyoruz ---
+    container_name: main-app-nginx # Mikroservis projesiyle çakışmayı önler.
+    image: nginx:1.25-alpine
+    ports:
+      # Sunucunun 80 portuna gelen isteği, bu Nginx container'ının 80 portuna yönlendir.
+      - "80:80"
+      - "443:443"
+    volumes:
+      # Host makinesindeki nginx.conf dosyamızı container'ın içine kopyala.
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./certs:/etc/nginx/certs:ro
+    depends_on:
+      - backend-api
+    networks:
+      - attn_shared_network
+   
+  postgres:
+    image: postgres:15-alpine
+    container_name: attn_postgres
+    environment:
+      POSTGRES_USER: "attn_user"
+      POSTGRES_PASSWORD: "your_strong_password_here"
+      POSTGRES_DB: "attn_db"
+    ports:
+      - "5433:5432"
+    volumes:
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/init.sql
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      # Bu servis, aşağıdaki 'attn_shared_network' ağına bağlanacak.
+      - attn_shared_network
+
+  redis:
+    image: redis:7-alpine
+    container_name: attn_redis
+    ports:
+      - "6379:6379"
+    networks:
+      - attn_shared_network
+
+  backend-api:
+    environment:
+      - TZ=Europe/Istanbul
+    build:
+      context: .
+      dockerfile: ./backend/Dockerfile
+    container_name: attn_backend_api
+    env_file:
+      - ./backend/.env
+    ports:
+      - "8001:8000"
+    volumes:
+      - ./backend:/app/backend
+      # --- YENİ: Logların kalıcı olmasını sağlayan volume tanımı ---
+      # api_logs adındaki kalıcı alanı, container içindeki /app/logs klasörüne bağla.
+      - api_logs:/app/logs
+    networks:
+      - attn_shared_network
+    depends_on:
+      - postgres
+      - redis
+
+# --- DEĞİŞİKLİK: Ağ tanımını güncelliyoruz ---
+networks:
+  attn_shared_network: # <-- Ağa yeni, genel bir isim verdik.
+    name: attn_shared_network # <-- Bu satır, Docker'ın rastgele ön ek koymasını engeller.
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
+  # --- YENİ: Log dosyaları için kalıcı bir alan tanımlıyoruz ---
+  api_logs:
+    driver: local

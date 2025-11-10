@@ -1,0 +1,30 @@
+# Git files
+.git/
+.gitignore
+
+# Docker-related files that shouldn't be in the image itself
+Dockerfile
+docker-compose.yml
+
+# Python virtual environment and cache
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+env/
+ENV/
+
+# IDE and editor files
+.idea/
+.vscode/
+
+# Sensitive environment files
+.env
+.env*
+
+# Test files from other directories (if context is higher up)
+../tests/
+
+# Documentation
+../docs/
